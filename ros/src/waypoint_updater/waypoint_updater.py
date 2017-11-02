@@ -24,7 +24,7 @@ as well as to verify your TL classifier.
 TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
-LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
+LOOKAHEAD_WPS = 50 # Number of waypoints we will publish. You can change this number
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -41,12 +41,30 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # TODO: Add other member variables you need below
-	self.current_pose = PoseStamped()
-	self.base_waypoints = Lane()
-	self.traffic_waypoints = Int32()
+    	self.current_pose = PoseStamped()
+    	self.base_waypoints = Lane()
+    	self.traffic_waypoints = Int32()
 
+        #rospy.spin()
+        self.loop()
 
-        rospy.spin()
+    def loop(self):
+        rate = rospy.Rate(1) # 5Hz
+        while not rospy.is_shutdown():
+        	if self.current_pose and len(self.base_waypoints.waypoints)>0:
+        		nextWaypoint = self.next_node()
+        		final_waypoints = Lane()
+        		for i in range(LOOKAHEAD_WPS):
+        			waypoint = nextWaypoint + i
+        			if waypoint >= len(self.base_waypoints.waypoints):
+        				waypoint -= len(self.base_waypoints.waypoints)
+        			waypoint_from_base = self.base_waypoints.waypoints[waypoint]
+        			waypoint_from_base.twist.twist.linear.x = 10
+        			final_waypoints.waypoints.extend([waypoint_from_base])
+        		self.final_waypoints_pub.publish(final_waypoints)
+
+        	rate.sleep()
+
 
     def closest_node(self):
 	i_closest= -1
@@ -81,26 +99,14 @@ class WaypointUpdater(object):
 
     def pose_cb(self, msg):
         # TODO: Implement
-	self.current_pose = msg
-	if len(self.base_waypoints.waypoints)>0:
-		nextWaypoint = self.next_node()
-		final_waypoints = Lane()
-		for i in range(LOOKAHEAD_WPS):
-			waypoint = nextWaypoint + i
-			if waypoint >= len(self.base_waypoints.waypoints):
-				waypoint -= len(self.base_waypoints.waypoints)
-			waypoint_from_base = self.base_waypoints.waypoints[waypoint]
-			waypoint_from_base.twist.twist.linear.x = 5
-			final_waypoints.waypoints.extend([waypoint_from_base])
-		self.final_waypoints_pub.publish(final_waypoints)
+        self.current_pose = msg
         pass
 
     def waypoints_cb(self, waypoints):
-        # TODO: Implement
-	#rospy.logwarn('Initial waypoints %s', len(waypoints.waypoints))
-	self.base_waypoints = waypoints
-	#rospy.logwarn('Copied waypoints %s', len(self.base_waypoints.waypoints))
-
+# TODO: Implement
+#rospy.logwarn('Initial waypoints %s', len(waypoints.waypoints))
+        self.base_waypoints = waypoints
+#rospy.logwarn('Copied waypoints %s', len(self.base_waypoints.waypoints))
         pass
 
     def traffic_cb(self, msg):
